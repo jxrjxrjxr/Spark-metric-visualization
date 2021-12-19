@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+
+<head>
+    <meta charset="UTF-8">
+    <script src="/lib/d3.v6.min.js"></script>
+    <script src="/lib/jquery.min.js"></script>
+    <style>
+
+        svg {
+          font: 10px sansf-serif;
+        }
+        
+        .area {
+          fill: steelblue;
+          clip-path: url(#clip);
+        }
+        
+        .axis path,
+        .axis line {
+          fill: none;
+          stroke: #000;
+          shape-rendering: crispEdges;
+        }
+        
+        .brush .extent {
+          stroke: #fff;
+          fill-opacity: .125;
+          shape-rendering: crispEdges;
+        }
+
+        #l-container {
+            float: left;
+            margin-left: 20px;
+            margin-top: 80px;
+        }
+
+        #r-container {
+            float: right;
+            margin-right: 20px;
+            margin-top: 80px;
+        }
+        h1 {
+            text-align: center;
+            font-family: Verdana, Arial, Helvetica, sans-serif;
+            font-size: 40px;
+            font-weight: bold;
+            margin-top: 50px;
+        }
+        </style>
+</head>
+
+<body>
+<h1>0226 Metric Visualization</h1>
+<div id="l-container">
+<div id="observablehq-viewof-sel-a9431592"></div>
+<div id="pblock"><br></div>
+<div id="observablehq-chart-a9431592"></div>
+</div>
+<!-- <p id="credit-l">Credit: <a href="https://observablehq.com/@jxrjxrjxr/cloudcomputefinal">CloudComputeFinal by jxrjxrjxr</a></p> -->
+<div id="r-container">
+<div id="observablehq-viewof-cmdbSel-e0ae6da6"></div>
+<div id="observablehq-viewof-kpiSel-e0ae6da6"></div>
+<div id="observablehq-chart-e0ae6da6"></div>
+</div>
+<!-- <p id="credit-r">Credit: <a href="https://observablehq.com/@jxrjxrjxr/cloudcomputefinal-1">CloudComputeFinal-1 by jxrjxrjxr</a></p> -->
+
+<script type="module">
+import {Runtime, Inspector, Library} from "https://cdn.jsdelivr.net/npm/@observablehq/runtime@4/dist/runtime.js";
+import define from "https://api.observablehq.com/@jxrjxrjxr/cloudcomputefinal.js?v=3";
+const library = new Library();
+const runtime = new Runtime(library);
+const main = runtime.module(define, name => {
+  if (name === "viewof sel") return new Inspector(document.querySelector("#observablehq-viewof-sel-a9431592"));
+  if (name === "chart") return new Inspector(document.querySelector("#observablehq-chart-a9431592"));
+  return ["area","brush","area2","y","yAxis","y2","yAxis2", "data", "d3"].includes(name);
+});
+d3.json('/kpi/4320').then(function(data){
+    let parser = d3.timeParse("%s");
+    let pdata = data.map(function(dd){
+        let d = JSON.parse(dd);
+        return {
+            timestamp: new Date(parser(d.timestamp)),
+            rr: +d.rr,
+            sr: +d.sr,
+            count: +d.count,
+            mrt: +d.mrt,
+            tc: d.tc
+        };
+    });
+    console.log(pdata);
+    console.log(pdata[0]["timestamp"])
+    console.log(pdata[0].timestamp)
+    main.redefine("data", pdata);
+});
+main.redefine("width", library.Generators.observe(notify=>{
+    let width = notify(window.innerWidth * 0.4);
+    function resized(){
+        let newWidth = window.innerWidth * 0.4;
+        if(newWidth != width){
+            notify(width = newWidth);
+        }
+    }
+    addEventListener("resize", resized);
+    return () => removeEventListener("resize", resized);
+}));
+</script>
+<script type="module">
+import {Runtime, Inspector, Library} from "https://cdn.jsdelivr.net/npm/@observablehq/runtime@4/dist/runtime.js";
+import define from "https://api.observablehq.com/@jxrjxrjxr/cloudcomputefinal-1.js?v=3";
+const library = new Library();
+const runtime2 = new Runtime(library);
+const main2 = runtime2.module(define, name => {
+  if (name === "viewof cmdbSel") return new Inspector(document.querySelector("#observablehq-viewof-cmdbSel-e0ae6da6"));
+  if (name == "cmdbSel") return { fulfilled(value){setKPI(value);} };
+  if (name === "viewof kpiSel") return new Inspector(document.querySelector("#observablehq-viewof-kpiSel-e0ae6da6"));
+  if (name == "kpiSel") return { fulfilled(value){setData(value);} };
+  if (name === "chart") return new Inspector(document.querySelector("#observablehq-chart-e0ae6da6"));
+  return ["area","brush","area2","y","yAxis","y2","yAxis2", "data", "cmdbLst", "kpiLst", "d3"].includes(name);
+});
+var cmdb_kpi_s = null;
+d3.json('/static/cmdb-kpi.json').then(function(cmdb_kpi){
+    console.log(cmdb_kpi);
+    cmdb_kpi_s = cmdb_kpi;
+    let cmdbLst = Object.keys(cmdb_kpi);
+    console.log(cmdbLst);
+    main2.redefine("cmdbLst", cmdbLst);
+});
+
+function setKPI(cmdb){
+    let kpiLst = cmdb_kpi_s[cmdb];
+    console.log(kpiLst);
+    main2.redefine("kpiLst", kpiLst);
+}
+
+function setData(kpi){
+    main2.value("cmdbSel").then(function(cmdb){
+        console.log(`${cmdb}/${kpi}`);
+        d3.json(`/metric/${cmdb}/${kpi}`).then(function(data){
+            let parser = d3.timeParse("%s");
+            console.log(data);
+            let pdata = data.map(function(d){
+                // let d = JSON.parse(dd);
+                return {
+                    timestamp: new Date(parser(d.timestamp)),
+                    value: +d.value
+                }
+            })
+            console.log(pdata);
+            main2.redefine("data", pdata);
+        });
+    });
+}
+
+main2.redefine("width", library.Generators.observe(notify=>{
+    let width = notify(window.innerWidth * 0.4);
+    function resized(){
+        let newWidth = window.innerWidth * 0.4;
+        if(newWidth != width){
+            notify(width = newWidth);
+        }
+    }
+    addEventListener("resize", resized);
+    return () => removeEventListener("resize", resized);
+}));
+</script>
+</body>
